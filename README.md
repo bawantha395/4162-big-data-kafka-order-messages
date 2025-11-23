@@ -1,5 +1,7 @@
-# EG/2020/4162 
+# Rathnayake RMBTM - EG/2020/4162 
 Big Data Kafka Order Messages Assignment
+
+Demo link : https://drive.google.com/file/d/18YD1qgdU-oEzlEK0oRa4ysubB5X6gIPO/view?usp=sharing
 
 This project demonstrates an asynchronous order processing system using Apache Kafka, Zookeeper, Schema Registry, and Kafka UI. It includes a producer that generates orders, a consumer that processes them with retry logic and dead-letter queue (DLQ) handling, and a DLQ consumer for monitoring failed messages.
 
@@ -45,9 +47,7 @@ This starts Zookeeper, Kafka broker, Schema Registry, and Kafka UI.
 
 Build and run the applications:
 
-- **Producer**:
-  ```
-  
+
 
 ```
 docker-compose up --build
