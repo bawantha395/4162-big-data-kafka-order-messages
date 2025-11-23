@@ -9,11 +9,12 @@ import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.util.Collections;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
 import java.time.Duration;
 
 public class OrderConsumer {
-    private static double sum = 0;
-    private static int count = 0;
+    private static AtomicLong sum = new AtomicLong(0);
+    private static AtomicLong count = new AtomicLong(0);
 
     public static void main(String[] args) {
         Properties props = new Properties();
@@ -41,15 +42,25 @@ public class OrderConsumer {
             ConsumerRecords<String, Order> records = consumer.poll(Duration.ofMillis(100));
             for (ConsumerRecord<String, Order> record : records) {
                 Order order = record.value();
-                boolean success = processOrder(order);
+                boolean success = false;
+                try {
+                    processOrder(order);
+                    success = true;
+                } catch (Exception e) {
+                    System.out.println("Failed to process: " + order + " - " + e.getMessage());
+                    success = false;
+                }
                 if (!success) {
                     // retry
                     int retries = 3;
                     boolean retriedSuccess = false;
                     for (int i = 0; i < retries; i++) {
-                        if (processOrder(order)) {
+                        try {
+                            processOrder(order);
                             retriedSuccess = true;
                             break;
+                        } catch (Exception e) {
+                            System.out.println("Retry " + (i+1) + " failed: " + order + " - " + e.getMessage());
                         }
                     }
                     if (!retriedSuccess) {
@@ -57,25 +68,21 @@ public class OrderConsumer {
                         ProducerRecord<String, Order> dlqRecord = new ProducerRecord<>("orders-dlq", order.getOrderId().toString(), order);
                         dlqProducer.send(dlqRecord);
                         System.out.println("Sent to DLQ: " + order);
-                    } else {
-                        success = true;
                     }
-                }
-                if (success) {
-                    sum += order.getPrice();
-                    count++;
-                    System.out.println("Running average: " + (sum / count));
                 }
             }
         }
     }
 
-    private static boolean processOrder(Order order) {
-        if ("FailItem".equals(order.getProduct())) {
-            System.out.println("Failed to process: " + order);
-            return false;
+    private static void processOrder(Order order) throws Exception {
+        // Simulate failure if price > 80
+        if (order.getPrice() > 80) {
+            throw new Exception("Price too high: " + order.getPrice());
         }
-        System.out.println("Processed: " + order);
-        return true;
+        // Update running average
+        sum.addAndGet((long) (order.getPrice() * 100)); // Use long for precision
+        count.incrementAndGet();
+        double average = (double) sum.get() / count.get() / 100.0;
+        System.out.println("Processed order: " + order + ", Running average: " + average);
     }
 }
